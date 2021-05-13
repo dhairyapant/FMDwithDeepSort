@@ -46,9 +46,9 @@ def main(yolo):
 
     start = time.time()
     # Definition of the parameters
-    max_cosine_distance = 0.5
+    max_cosine_distance = 0.5  # 余弦距离的控制阈值
     nn_budget = None
-    nms_max_overlap = 0.3
+    nms_max_overlap = 0.3  # 非极大抑制的阈值
 
     counter = []
     # deep_sort
@@ -59,15 +59,15 @@ def main(yolo):
     tracker = Tracker(metric)
 
     writeVideo_flag = True
-    # video_path = "./output/output.avi"
+    video_path = "./output/output.avi"
     video_capture = cv2.VideoCapture(args["input"])
 
     if writeVideo_flag:
         # Define the codec and create VideoWriter object
         w = int(video_capture.get(3))
         h = int(video_capture.get(4))
-        ##        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-        ##        out = cv2.VideoWriter('./output/'+ "_" + args["class"] + '_output.avi', fourcc, 15, (w, h))
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        vidout = cv2.VideoWriter('output.avi', fourcc, 15, (w, h))
         list_file = open('detection.txt', 'w')
         frame_index = -1
 
@@ -81,10 +81,12 @@ def main(yolo):
         t1 = time.time()
         line_x = int(frame.shape[1]/2)
         # image = Image.fromarray(frame)
-        image = Image.fromarray(frame[..., ::-1])
+        image = Image.fromarray(frame[..., ::-1])  # bgr to rgb
         boxs, class_names = yolo.detect_image(image)
         features = encoder(frame, boxs)
+        # score to 1.0 here).
         detections = [Detection(bbox, 1.0, feature) for bbox, feature in zip(boxs, features)]
+        # Run non-maxima suppression.
         boxes = np.array([d.tlwh for d in detections])
         scores = np.array([d.confidence for d in detections])
         indices = preprocessing.non_max_suppression(boxes, nms_max_overlap, scores)
@@ -110,7 +112,7 @@ def main(yolo):
             indexIDs.append(int(track.track_id))
             counter.append(int(track.track_id))
             bbox = track.to_tlbr()
-            subimg = frame[int(bbox[1]): int(bbox[3]), int(bbox[0]): int(bbox[2])]
+            subimg = frame[int(max(bbox[1], 0)): int(bbox[3]), int(max(0,bbox[0])): int(bbox[2])]
             inp = subimg[:, :, [2, 1, 0]]  # BGR2RGB
 
             # Run the model
@@ -130,13 +132,19 @@ def main(yolo):
                     masked[track.track_id] = False
                 elif track.track_id not in masked.keys():
                     masked[track.track_id] = None
+            mask_str = ''
+
+            if masked[track.track_id]:
+                mask_str = 'mask'
+            elif not masked[track.track_id]:
+                mask_str = 'no mask'
             color = [int(c) for c in COLORS[indexIDs[i] % len(COLORS)]]
 
             cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (color), 3)
             cv2.putText(frame, str(track.track_id), (int(bbox[0]), int(bbox[1] - 50)), 0, 5e-3 * 150, (color), 2)
             if len(class_names) > 0:
                 class_name = class_names[0]
-                cv2.putText(frame, str(class_names[0]), (int(bbox[0]), int(bbox[1] - 20)), 0, 5e-3 * 150, (color), 2)
+                cv2.putText(frame, str(mask_str), (int(bbox[0]), int(bbox[1] - 20)), 0, 5e-3 * 150, (color), 2)
 
             i += 1
             # bbox_center_point(x,y)
@@ -172,17 +180,17 @@ def main(yolo):
         count_masked = list(masked.values()).count(True)
         count_no_masked = list(masked.values()).count(False)
         cv2.putText(frame, "Total Person Counter: " + str(count_line_crossed), (int(20), int(120)), 0, 5e-3 * 200, (0, 255, 0), 2)
-        cv2.putText(frame, "Current Person Counter: " + str(i), (int(20), int(80)), 0, 5e-3 * 200, (0, 255, 0), 2)
-        cv2.putText(frame, "Masked: {} No-Masked: {}".format(count_masked, count_no_masked), (20, 140), 0, 5e-3 * 200, (0, 255, 0), 2)
+        # cv2.putText(frame, "Current Person Counter: " + str(i), (int(20), int(80)), 0, 5e-3 * 200, (0, 255, 0), 2)
+        # cv2.putText(frame, "Masked: {} No-Masked: {}".format(count_masked, count_no_masked), (20, 140), 0, 5e-3 * 200, (0, 255, 0), 2)
         cv2.putText(frame, "FPS: %f" % (fps), (int(20), int(40)), 0, 5e-3 * 200, (0, 255, 0), 3)
-        cv2.line(frame, (320, 0), (320, 480), (250, 250, 250), 2)
+        cv2.line(frame, (line_x, 0), (line_x, frame.shape[0]), (250, 250, 250), 2)
         cv2.namedWindow("YOLO3_Deep_SORT", 0);
         cv2.resizeWindow('YOLO3_Deep_SORT', 1024, 768);
         cv2.imshow('YOLO3_Deep_SORT', frame)
 
         if writeVideo_flag:
             # save a frame
-            # out.write(frame)
+            vidout.write(frame)
             frame_index = frame_index + 1
             list_file.write(str(frame_index) + ' ')
             if len(boxs) != 0:
@@ -209,7 +217,7 @@ def main(yolo):
     video_capture.release()
 
     if writeVideo_flag:
-        # out.release()
+        vidout.release()
         list_file.close()
     cv2.destroyAllWindows()
 
