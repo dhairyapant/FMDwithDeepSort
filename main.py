@@ -181,7 +181,7 @@ def main(yolo):
         count_no_masked = list(masked.values()).count(False)
         cv2.putText(frame, "Total Person Counter: " + str(count_line_crossed), (int(20), int(120)), 0, 5e-3 * 200, (0, 255, 0), 2)
         # cv2.putText(frame, "Current Person Counter: " + str(i), (int(20), int(80)), 0, 5e-3 * 200, (0, 255, 0), 2)
-        # cv2.putText(frame, "Masked: {} No-Masked: {}".format(count_masked, count_no_masked), (20, 140), 0, 5e-3 * 200, (0, 255, 0), 2)
+        cv2.putText(frame, "Masked: {} No-Masked: {}".format(count_masked, count_no_masked), (20, 140), 0, 5e-3 * 200, (0, 255, 0), 2)
         cv2.putText(frame, "FPS: %f" % (fps), (int(20), int(40)), 0, 5e-3 * 200, (0, 255, 0), 3)
         cv2.line(frame, (line_x, 0), (line_x, frame.shape[0]), (250, 250, 250), 2)
         cv2.namedWindow("YOLO3_Deep_SORT", 0);
